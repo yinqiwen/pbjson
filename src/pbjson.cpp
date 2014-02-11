@@ -164,6 +164,7 @@ namespace pbjson
                 }
                 break;
             case FieldDescriptor::CPPTYPE_STRING:
+            {
                 bool is_binary = field->type() == FieldDescriptor::TYPE_BYTES;
                 if (repeated)
                 {
@@ -188,6 +189,7 @@ namespace pbjson
                     json = new rapidjson::Value(value.c_str());
                 }
                 break;
+            }
             case FieldDescriptor::CPPTYPE_MESSAGE:
                 if (repeated)
                 {
