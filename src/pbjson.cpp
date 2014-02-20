@@ -415,11 +415,11 @@ namespace pbjson
             {
                 const EnumDescriptor *ed = field->enum_type();
                 const EnumValueDescriptor *ev = 0;
-                if (json->GetType() != rapidjson::kNumberType)
+                if (json->GetType() == rapidjson::kNumberType)
                 {
                     ev = ed->FindValueByNumber(json->GetInt());
                 }
-                else if (json->GetType() != rapidjson::kStringType)
+                else if (json->GetType() == rapidjson::kStringType)
                 {
                     ev = ed->FindValueByName(json->GetString());
                 }
