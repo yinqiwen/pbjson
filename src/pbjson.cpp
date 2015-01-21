@@ -474,7 +474,7 @@ namespace pbjson
             if (!field)
                 field = ref->FindKnownExtensionByName(name);
             if (!field)
-                RETURN_ERR(ERR_UNKNOWN_FIELD, "unknown field");
+                continue; // TODO: we should not fail here, instead write this value into an unknown field
             int r = 0;
             if (field->is_repeated())
             {
