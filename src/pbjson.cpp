@@ -265,6 +265,10 @@ namespace pbjson
     static int json2field(const rapidjson::Value* json, Message* msg, const FieldDescriptor *field, std::string& err)
     {
         const Reflection *ref = msg->GetReflection();
+        if (json->GetType() == rapidjson::kNullType) {
+          ref->ClearField(msg, field);
+          return 0;
+        }
         const bool repeated = field->is_repeated();
         switch (field->cpp_type())
         {
