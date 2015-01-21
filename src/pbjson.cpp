@@ -530,6 +530,7 @@ namespace pbjson
         d.Parse<0>(json.c_str());
         if (d.HasParseError())
         {
+            err += d.GetParseError();
             return ERR_INVALID_ARG;
         }
         int ret = jsonobject2pb(&d, msg, err);
@@ -541,4 +542,3 @@ namespace pbjson
     }
 
 }
-
