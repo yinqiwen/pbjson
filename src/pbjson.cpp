@@ -265,10 +265,6 @@ namespace pbjson
     static int json2field(const rapidjson::Value* json, Message* msg, const FieldDescriptor *field, std::string& err)
     {
         const Reflection *ref = msg->GetReflection();
-        if (json->GetType() == rapidjson::kNullType) {
-          ref->ClearField(msg, field);
-          return 0;
-        }
         const bool repeated = field->is_repeated();
         switch (field->cpp_type())
         {
@@ -475,7 +471,10 @@ namespace pbjson
                 field = ref->FindKnownExtensionByName(name);
             if (!field)
                 continue; // TODO: we should not fail here, instead write this value into an unknown field
-            int r = 0;
+            if (itr->value.GetType() == rapidjson::kNullType) {
+                ref->ClearField(msg, field);
+                continue;
+            }
             if (field->is_repeated())
             {
                 if (itr->value.GetType() != rapidjson::kArrayType)
