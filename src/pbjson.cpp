@@ -470,8 +470,11 @@ namespace pbjson
             if (!field)
                 field = ref->FindKnownExtensionByName(name);
             if (!field)
-                RETURN_ERR(ERR_UNKNOWN_FIELD, "unknown field");
-            int r = 0;
+                continue; // TODO: we should not fail here, instead write this value into an unknown field
+            if (itr->value.GetType() == rapidjson::kNullType) {
+                ref->ClearField(msg, field);
+                continue;
+            }
             if (field->is_repeated())
             {
                 if (itr->value.GetType() != rapidjson::kArrayType)
@@ -530,6 +533,7 @@ namespace pbjson
         d.Parse<0>(json.c_str());
         if (d.HasParseError())
         {
+            err += d.GetParseError();
             return ERR_INVALID_ARG;
         }
         int ret = jsonobject2pb(&d, msg, err);
@@ -541,4 +545,3 @@ namespace pbjson
     }
 
 }
-
