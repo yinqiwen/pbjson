@@ -187,7 +187,7 @@ namespace pbjson
                     {
                         value = b64_encode(value);
                     }
-                    json = new rapidjson::Value(value.c_str());
+                    json = new rapidjson::Value(value.c_str(), value.size(), allocator);
                 }
                 break;
             }
@@ -500,10 +500,10 @@ namespace pbjson
         return 0;
     }
 
-    void json2string(const rapidjson::Value* json, std::string& str)
+    void json2string(const rapidjson::Value* json, std::string& str, rapidjson::Value::AllocatorType& allocator)
     {
         rapidjson::StringBuffer buffer;
-        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer, &allocator);
         json->Accept(writer);
         str.append(buffer.GetString(), buffer.Size());
     }
@@ -512,7 +512,7 @@ namespace pbjson
     {
         rapidjson::Value::AllocatorType allocator;
         rapidjson::Value* json = parse_msg(msg, allocator);
-        json2string(json, str);
+        json2string(json, str, allocator);
         delete json;
     }
 
