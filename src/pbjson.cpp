@@ -176,7 +176,7 @@ namespace pbjson
                         {
                             value = b64_encode(value);
                         }
-                        rapidjson::Value v(value.c_str());
+                        rapidjson::Value v(value.c_str(), value.size(), allocator);
                         json->PushBack(v, allocator);
                     }
                 }
