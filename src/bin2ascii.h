@@ -36,8 +36,8 @@ inline std::string hex2bin(const std::string &s)
 	std::string r;
 	r.reserve(s.size() / 2);
 	for (size_t i = 0; i < s.size(); i += 2) {
-		char hi = lookup[s[i]];
-		char lo = lookup[s[i+1]];
+		char hi = lookup[static_cast<unsigned char>(s[i])];
+		char lo = lookup[static_cast<unsigned char>(s[i+1])];
 		if (0x80 & (hi | lo))
 			throw std::runtime_error("Invalid hex data: " + s.substr(i, 6));
 		r.push_back((hi << 4) | lo);
@@ -51,8 +51,8 @@ inline std::string bin2hex(const std::string &s)
 	std::string r;
 	r.reserve(s.size() * 2);
 	for (size_t i = 0; i < s.size(); i++) {
-		char hi = s[i] >> 4;
-		char lo = s[i] & 0xf;
+		unsigned char hi = s[i] >> 4;
+		unsigned char lo = s[i] & 0xf;
 		r.push_back(lookup[hi]);
 		r.push_back(lookup[lo]);
 	}
@@ -81,7 +81,7 @@ inline std::string b64_encode(const std::string &s)
 		if (i + 1 < s.size()) r.push_back(lookup[n2]);
 		if (i + 2 < s.size()) r.push_back(lookup[n3]);
 	}
-	for (int i = 0; i < (3 - s.size() % 3) % 3; i++)
+	for (size_t i = 0; i < (3 - s.size() % 3) % 3; i++)
 		r.push_back('=');
 	return r;
 }
