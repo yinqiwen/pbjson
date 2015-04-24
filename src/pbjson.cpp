@@ -41,7 +41,7 @@ using namespace google::protobuf;
 namespace pbjson
 {
     static rapidjson::Value *parse_msg(const Message *msg, rapidjson::Value::AllocatorType& allocator);
-    static rapidjson::Value* filed2json(const Message *msg, const FieldDescriptor *field,
+    static rapidjson::Value* field2json(const Message *msg, const FieldDescriptor *field,
             rapidjson::Value::AllocatorType& allocator)
     {
         const Reflection *ref = msg->GetReflection();
@@ -176,7 +176,7 @@ namespace pbjson
                         {
                             value = b64_encode(value);
                         }
-                        rapidjson::Value v(value.c_str());
+                        rapidjson::Value v(value.c_str(), value.size());
                         json->PushBack(v, allocator);
                     }
                 }
@@ -247,15 +247,14 @@ namespace pbjson
             const Reflection *ref = msg->GetReflection();
             if (!ref)
                 return NULL;
-            const char *name = field->name().c_str();
             if (field->is_optional() && !ref->HasField(*msg, field))
             {
                 //do nothing
             }
             else
             {
-                rapidjson::Value* field_json = filed2json(msg, field, allocator);
-                root->AddMember(name, *field_json, allocator);
+                rapidjson::Value* field_json = field2json(msg, field, allocator);
+                root->AddMember(rapidjson::Value(field->name().c_str(), field->name().size()), *field_json, allocator);
                 delete field_json;
             }
         }
@@ -500,19 +499,19 @@ namespace pbjson
         return 0;
     }
 
-    void json2string(const rapidjson::Value* json, std::string& str, rapidjson::Value::AllocatorType& allocator)
+    void json2string(const rapidjson::Value* json, std::string& str)
     {
         rapidjson::StringBuffer buffer;
-        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer, &allocator);
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
         json->Accept(writer);
-        str.append(buffer.GetString(), buffer.Size());
+        str.append(buffer.GetString(), buffer.GetSize());
     }
 
     void pb2json(const Message* msg, std::string& str)
     {
         rapidjson::Value::AllocatorType allocator;
         rapidjson::Value* json = parse_msg(msg, allocator);
-        json2string(json, str, allocator);
+        json2string(json, str);
         delete json;
     }
 
