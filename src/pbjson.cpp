@@ -254,7 +254,8 @@ namespace pbjson
             else
             {
                 rapidjson::Value* field_json = field2json(msg, field, allocator);
-                root->AddMember(rapidjson::Value(field->name().c_str(), field->name().size()), *field_json, allocator);
+                rapidjson::Value field_name(field->name().c_str(), field->name().size());
+                root->AddMember(field_name, *field_json, allocator);
                 delete field_json;
             }
         }
