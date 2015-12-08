@@ -246,7 +246,10 @@ namespace pbjson
 
             const Reflection *ref = msg->GetReflection();
             if (!ref)
+            {
+                delete root;
                 return NULL;
+            }
             if (field->is_optional() && !ref->HasField(*msg, field))
             {
                 //do nothing
