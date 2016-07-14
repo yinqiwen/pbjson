@@ -241,10 +241,10 @@ namespace pbjson
         for (size_t i = 0; i != count; ++i)
         {
             const FieldDescriptor *field = d->field(i);
-      			if (!field){
-      				  delete root;
+            if (!field){
+                delete root;
                 return NULL;
-      			}
+            }
 
             const Reflection *ref = msg->GetReflection();
             if (!ref)
