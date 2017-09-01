@@ -33,12 +33,16 @@
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 
-#define RETURN_ERR(id, cause) \
+#define RETURN_ERR(ID, CAUSE) \
     do                        \
     {                         \
-        err = cause;          \
-        return id;            \
+        err = CAUSE;          \
+        return ID;            \
     } while (0)
+
+#define UNEXPECTED_FIELD_TYPE_MSG(field, TYPE) \
+    (std::string() + "Field `" + field->name() + "` is expecting an `" #TYPE "` value")
+#define UNEXPECTED_MSG(field, MSG) (std::string() + "Field `" + field->name() + "` is unexpected: " MSG)
 using namespace google::protobuf;
 namespace pbjson
 {
@@ -62,114 +66,35 @@ static rapidjson::Value* field2json(const Message* msg,
     }
     switch (field->cpp_type())
     {
-        case FieldDescriptor::CPPTYPE_DOUBLE:
-            if (repeated)
-            {
-                for (size_t i = 0; i != array_size; ++i)
-                {
-                    double value = ref->GetRepeatedDouble(*msg, field, i);
-                    rapidjson::Value v(value);
-                    json->PushBack(v, allocator);
-                }
-            }
-            else
-            {
-                json = new rapidjson::Value(ref->GetDouble(*msg, field));
-            }
-            break;
-        case FieldDescriptor::CPPTYPE_FLOAT:
-            if (repeated)
-            {
-                for (size_t i = 0; i != array_size; ++i)
-                {
-                    float value = ref->GetRepeatedFloat(*msg, field, i);
-                    rapidjson::Value v(value);
-                    json->PushBack(v, allocator);
-                }
-            }
-            else
-            {
-                json = new rapidjson::Value(ref->GetFloat(*msg, field));
-            }
-            break;
-        case FieldDescriptor::CPPTYPE_INT64:
-            if (repeated)
-            {
-                for (size_t i = 0; i != array_size; ++i)
-                {
-                    int64_t value = ref->GetRepeatedInt64(*msg, field, i);
-                    rapidjson::Value v(value);
-                    json->PushBack(v, allocator);
-                }
-            }
-            else
-            {
-                json = new rapidjson::Value(static_cast<int64_t>(ref->GetInt64(*msg, field)));
-            }
-            break;
-        case FieldDescriptor::CPPTYPE_UINT64:
-            if (repeated)
-            {
-                for (size_t i = 0; i != array_size; ++i)
-                {
-                    uint64_t value = ref->GetRepeatedUInt64(*msg, field, i);
-                    rapidjson::Value v(value);
-                    json->PushBack(v, allocator);
-                }
-            }
-            else
-            {
-                json = new rapidjson::Value(static_cast<uint64_t>(ref->GetUInt64(*msg, field)));
-            }
-            break;
-        case FieldDescriptor::CPPTYPE_INT32:
-            if (repeated)
-            {
-                for (size_t i = 0; i != array_size; ++i)
-                {
-                    int32_t value = ref->GetRepeatedInt32(*msg, field, i);
-                    rapidjson::Value v(value);
-                    json->PushBack(v, allocator);
-                }
-            }
-            else
-            {
-                json = new rapidjson::Value(ref->GetInt32(*msg, field));
-            }
-            break;
-        case FieldDescriptor::CPPTYPE_UINT32:
-            if (repeated)
-            {
-                for (size_t i = 0; i != array_size; ++i)
-                {
-                    uint32_t value = ref->GetRepeatedUInt32(*msg, field, i);
-                    rapidjson::Value v(value);
-                    json->PushBack(v, allocator);
-                }
-            }
-            else
-            {
-                json = new rapidjson::Value(ref->GetUInt32(*msg, field));
-            }
-            break;
-        case FieldDescriptor::CPPTYPE_BOOL:
-            if (repeated)
-            {
-                for (size_t i = 0; i != array_size; ++i)
-                {
-                    bool value = ref->GetRepeatedBool(*msg, field, i);
-                    rapidjson::Value v(value);
-                    json->PushBack(v, allocator);
-                }
-            }
-            else
-            {
-                json = new rapidjson::Value(ref->GetBool(*msg, field));
-            }
-            break;
+#define HANDLE_2JSON_FIELD(PB_TYPE, TYPE)                                   \
+    case FieldDescriptor::CPPTYPE_##PB_TYPE:                                \
+        if (repeated)                                                       \
+        {                                                                   \
+            for (size_t i = 0; i != array_size; ++i)                        \
+            {                                                               \
+                rapidjson::Value v(ref->GetRepeated##TYPE(*msg, field, i)); \
+                json->PushBack(v, allocator);                               \
+            }                                                               \
+        }                                                                   \
+        else                                                                \
+        {                                                                   \
+            json = new rapidjson::Value(ref->Get##TYPE(*msg, field));       \
+        }                                                                   \
+        break;
+
+        HANDLE_2JSON_FIELD(DOUBLE, Double)
+        HANDLE_2JSON_FIELD(FLOAT, Float)
+
+        HANDLE_2JSON_FIELD(INT64, Int64)
+        HANDLE_2JSON_FIELD(UINT64, UInt64)
+
+        HANDLE_2JSON_FIELD(INT32, Int32)
+        HANDLE_2JSON_FIELD(UINT32, UInt32)
+
+        HANDLE_2JSON_FIELD(BOOL, Bool)
         case FieldDescriptor::CPPTYPE_STRING:
         {
-            bool is_binary = field->type() == FieldDescriptor::TYPE_BYTES;
+            const bool is_binary = field->type() == FieldDescriptor::TYPE_BYTES;
             if (repeated)
             {
                 for (size_t i = 0; i != array_size; ++i)
@@ -179,7 +104,7 @@ static rapidjson::Value* field2json(const Message* msg,
                     {
                         value = b64_encode(value);
                     }
-                    rapidjson::Value v(value.c_str(), static_cast<rapidjson::SizeType>(value.size()), allocator);
+                    rapidjson::Value v(value.data(), static_cast<rapidjson::SizeType>(value.size()), allocator);
                     json->PushBack(v, allocator);
                 }
             }
@@ -190,7 +115,7 @@ static rapidjson::Value* field2json(const Message* msg,
                 {
                     value = b64_encode(value);
                 }
-                json = new rapidjson::Value(value.c_str(), value.size(), allocator);
+                json = new rapidjson::Value(value.data(), value.size(), allocator);
             }
             break;
         }
@@ -275,125 +200,73 @@ static int json2field(const rapidjson::Value* json, Message* msg, const FieldDes
     const bool repeated   = field->is_repeated();
     switch (field->cpp_type())
     {
-        case FieldDescriptor::CPPTYPE_INT32:
-        {
-            if (json->GetType() != rapidjson::kNumberType)
-            {
-                RETURN_ERR(ERR_INVALID_JSON, "Not a number");
-            }
-            if (repeated)
-            {
-                ref->AddInt32(msg, field, (int32_t)json->GetInt());
-            }
-            else
-            {
-                ref->SetInt32(msg, field, (int32_t)json->GetInt());
-            }
-            break;
-        }
-        case FieldDescriptor::CPPTYPE_UINT32:
-        {
-            if (json->GetType() != rapidjson::kNumberType)
-            {
-                RETURN_ERR(ERR_INVALID_JSON, "Not a number");
-            }
-            if (repeated)
-            {
-                ref->AddUInt32(msg, field, json->GetUint());
-            }
-            else
-            {
-                ref->SetUInt32(msg, field, json->GetUint());
-            }
-            break;
-        }
-        case FieldDescriptor::CPPTYPE_INT64:
-        {
-            if (json->GetType() != rapidjson::kNumberType)
-            {
-                RETURN_ERR(ERR_INVALID_JSON, "Not a number");
-            }
-            if (repeated)
-            {
-                ref->AddInt64(msg, field, json->GetInt64());
-            }
-            else
-            {
-                ref->SetInt64(msg, field, json->GetInt64());
-            }
-            break;
-        }
-        case FieldDescriptor::CPPTYPE_UINT64:
-        {
-            if (json->GetType() != rapidjson::kNumberType)
-            {
-                RETURN_ERR(ERR_INVALID_JSON, "Not a number");
-            }
-            if (repeated)
-            {
-                ref->AddUInt64(msg, field, json->GetUint64());
-            }
-            else
-            {
-                ref->SetUInt64(msg, field, json->GetUint64());
-            }
-            break;
-        }
+#define HANDLE_2PB_FIELD_EX(PBTYPE, TYPE, JSON_TYPE)                              \
+    case FieldDescriptor::CPPTYPE_##PBTYPE:                                       \
+    {                                                                             \
+        if (!json->Is##JSON_TYPE())                                               \
+        {                                                                         \
+            RETURN_ERR(ERR_INVALID_JSON, UNEXPECTED_FIELD_TYPE_MSG(field, TYPE)); \
+        }                                                                         \
+        if (repeated)                                                             \
+        {                                                                         \
+            ref->Add##TYPE(msg, field, json->Get##JSON_TYPE());                   \
+        }                                                                         \
+        else                                                                      \
+        {                                                                         \
+            ref->Set##TYPE(msg, field, json->Get##JSON_TYPE());                   \
+        }                                                                         \
+        break;                                                                    \
+    }
+#define HANDLE_2PB_FIELD(PBTYPE, TYPE) HANDLE_2PB_FIELD_EX(PBTYPE, TYPE, TYPE)
+
+        HANDLE_2PB_FIELD_EX(INT32, Int32, Int)
+        HANDLE_2PB_FIELD_EX(UINT32, UInt32, Uint)
+
+        HANDLE_2PB_FIELD(INT64, Int64)
+        HANDLE_2PB_FIELD_EX(UINT64, UInt64, Uint64)
+
+        HANDLE_2PB_FIELD(BOOL, Bool)
+
+        // special for double/float
         case FieldDescriptor::CPPTYPE_DOUBLE:
         {
-            if (json->GetType() != rapidjson::kNumberType)
+            if (!json->IsDouble() && !json->IsInt())
             {
-                RETURN_ERR(ERR_INVALID_JSON, "Not a number");
+                RETURN_ERR(ERR_INVALID_JSON, UNEXPECTED_FIELD_TYPE_MSG(field, Double));
             }
             if (repeated)
             {
-                ref->AddDouble(msg, field, json->GetDouble());
+                ref->AddDouble(msg, field, json->IsDouble() ? json->GetDouble() : json->GetInt());
             }
             else
             {
-                ref->SetDouble(msg, field, json->GetDouble());
+                ref->SetDouble(msg, field, json->IsDouble() ? json->GetDouble() : json->GetInt());
             }
             break;
         }
         case FieldDescriptor::CPPTYPE_FLOAT:
         {
-            if (json->GetType() != rapidjson::kNumberType)
+            if (!json->IsFloat() && !json->IsInt())
             {
-                RETURN_ERR(ERR_INVALID_JSON, "Not a number");
+                RETURN_ERR(ERR_INVALID_JSON, UNEXPECTED_FIELD_TYPE_MSG(field, Float));
             }
             if (repeated)
             {
-                ref->AddFloat(msg, field, json->GetDouble());
+                ref->AddFloat(msg, field, json->IsFloat() ? json->GetFloat() : json->GetInt());
             }
             else
             {
-                ref->SetFloat(msg, field, json->GetDouble());
-            }
-            break;
-        }
-        case FieldDescriptor::CPPTYPE_BOOL:
-        {
-            if (json->GetType() != rapidjson::kTrueType && json->GetType() != rapidjson::kFalseType)
-            {
-                RETURN_ERR(ERR_INVALID_JSON, "Not a bool");
-            }
-            bool v = json->GetBool();
-            if (repeated)
-            {
-                ref->AddBool(msg, field, v);
-            }
-            else
-            {
-                ref->SetBool(msg, field, v);
+                ref->SetFloat(msg, field, json->IsFloat() ? json->GetFloat() : json->GetInt());
             }
             break;
         }
         case FieldDescriptor::CPPTYPE_STRING:
         {
-            if (json->GetType() != rapidjson::kStringType)
+            if (!json->IsString())
             {
-                RETURN_ERR(ERR_INVALID_JSON, "Not a string");
+                RETURN_ERR(ERR_INVALID_JSON, UNEXPECTED_FIELD_TYPE_MSG(field, String));
             }
+
             const char* value = json->GetString();
             uint32_t str_size = json->GetStringLength();
             std::string str_value(value, str_size);
@@ -439,8 +312,11 @@ static int json2field(const rapidjson::Value* json, Message* msg, const FieldDes
                 ev = ed->FindValueByName(json->GetString());
             }
             else
-                RETURN_ERR(ERR_INVALID_JSON, "Not an integer or string");
-            if (!ev) RETURN_ERR(ERR_INVALID_JSON, "Enum value not found");
+            {
+                RETURN_ERR(ERR_INVALID_JSON, UNEXPECTED_FIELD_TYPE_MSG(field, IntegerOrString));
+            }
+
+            if (!ev) RETURN_ERR(ERR_INVALID_JSON, UNEXPECTED_MSG(field, "Enum value not found"));
             if (repeated)
             {
                 ref->AddEnum(msg, field, ev);
@@ -482,7 +358,8 @@ static int parse_json(const rapidjson::Value* json, Message* msg, std::string& e
         }
         if (field->is_repeated())
         {
-            if (itr->value.GetType() != rapidjson::kArrayType) RETURN_ERR(ERR_INVALID_JSON, "Not array");
+            if (itr->value.GetType() != rapidjson::kArrayType)
+                RETURN_ERR(ERR_INVALID_JSON, UNEXPECTED_MSG(field, "Not array"));
             for (rapidjson::Value::ConstValueIterator ait = itr->value.Begin(); ait != itr->value.End(); ++ait)
             {
                 int ret = json2field(ait, msg, field, err);
